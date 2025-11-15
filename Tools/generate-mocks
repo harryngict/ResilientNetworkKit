@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# OVERVIEW: Mockolo is a mock generator for Swift files.
+# https://github.com/uber/mockolo
+
+# USAGE EXAMPLES:
+# Tools/generate-mocks
+
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+
+error() {
+    echo "*** Script was interrupted due to an error. ***"
+    local MSG="$1"
+    echo "ERROR: $MSG"
+    exit 1
+}
+
+SRC_PATH="Sources/"
+TOOL="$1"
+
+if [[ -n "$TOOL" ]]; then
+    echo "*** Using the provided executable of Mockolo. ***"
+else
+    which -s mockolo
+    if (($? != 0)); then
+        error "Please install Mockolo via Homebrew beforehand."
+    else
+        echo "*** Using the homebrew version of Mockolo. ***"
+        TOOL="mockolo"
+    fi
+fi
+
+Tools/src-utils/check-versions
+Tools/format-code

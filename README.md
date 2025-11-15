@@ -2,6 +2,27 @@
 
 A production-ready, **resilient networking toolkit** for iOS built on top of `URLSession`.
 
+[![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](#)
+[![Platform iOS](https://img.shields.io/badge/Platform-iOS%2015%2B-blue.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
+[![SPM compatible](https://img.shields.io/badge/SPM-Compatible-success.svg)](#installation)
+[![CocoaPods compatible](https://img.shields.io/badge/CocoaPods-Compatible-EE3322.svg)](#installation)
+
+---
+
+### At a glance
+
+| Swift Version | Platforms | License | Swift Package Manager | CocoaPods |
+|--------------|-----------|---------|------------------------|-----------|
+| 6.0          | iOS 15+   | MIT     | ✅ Supported           | ✅ Supported |
+
+## Key architectural highlights
+
+- Protocol-oriented design with **Dependency Inversion**: the app depends only on `Endpoint` and `ResilientNetworkKit`, not on `URLSession`.
+- Composable **Decorator** implementations (`CircuitBreakerNetworkKit`, `AuthTokenNetworkKit`, `AdvancedRetryNetworkKit`) around a single networking abstraction.
+- **Chain-of-Responsibility** interceptors for logging, metrics, SSL pinning and request/response customization.
+- **Hexagonal / ports-and-adapters** split into interfaces, implementation and mocks for clean testing and modularity.
+
 ResilientNetworkKit is designed for real-world mobile apps where failures are normal – flaky networks,
 expired tokens, back-end incidents, and SSL requirements. It gives you:
 
@@ -111,6 +132,33 @@ A fluent builder used to compose the full NetworkKit stack:
 - Configure SSL & metrics (`SessionDelegateConfiguration` & `SSLConfiguration`)
 - Add request interceptors (`RequestInterceptor`)
 - Add advanced behaviors (`AdvancedRetryInterceptor`, `TokenRefreshingInterceptor`, `CircuitBreakerConfiguration`)
+
+---
+
+## Design & architecture (patterns and principles)
+
+ResilientNetworkKit is structured to make **clean code, testability and observability** the default.
+
+- **Protocol-oriented & dependency inversion**  
+  Your app depends only on the `Endpoint` and `ResilientNetworkKit` protocols, not on concrete `URLSession` APIs. This follows the Dependency Inversion Principle (DIP) and keeps networking behind a single, stable abstraction.
+
+- **Decorator pattern for cross-cutting concerns**  
+  Types like `CircuitBreakerNetworkKit`, `AuthTokenNetworkKit` and `AdvancedRetryNetworkKit` all conform to `ResilientNetworkKit` and wrap another `ResilientNetworkKit` instance. This is the classic **Decorator** pattern: you can layer behaviors (circuit breaker, retries, token refresh) without changing call sites.
+
+- **Builder pattern for configuration**  
+  `ResilientNetworkKitBuilder` implements the **Builder** pattern: it assembles the base implementation, decorators, interceptors, SSL and metrics into a single pipeline. There is exactly one place where you configure how networking behaves for the entire app.
+
+- **Chain of Responsibility via interceptors**  
+  Request/response interceptors form a **Chain of Responsibility**: each interceptor can observe, modify or short-circuit requests and responses in order, without knowing about the others. This makes logging, metrics, tracing and header manipulation pluggable and easy to test.
+
+- **Value-based endpoints and strong typing**  
+  `Endpoint` types are `Hashable`, `Identifiable` and `Sendable`, and carry a strongly typed `Response`. This makes them safe to cache, log and pass across threads, and gives you end-to-end type safety from request definition to decoded response.
+
+- **Interfaces / implementation / mocks split**  
+  The project is physically split into `interfaces`, `implementation` and `mocks` targets. This mirrors **ports & adapters / hexagonal architecture**: your app depends only on interfaces while concrete implementations and test doubles live in separate modules.
+
+- **Full control over networking**  
+  All network traffic flows through this composable pipeline, so you have central control over logging, metrics, SSL pinning, retries, token refresh and circuit breaking. You can enforce organization-wide policies and diagnose issues from a single, well-defined layer.
 
 ---
 
@@ -350,9 +398,13 @@ The `CircuitBreakerNetworkKit` decorator will:
 
 ## Testing & mocking
 
-- Use the `ResilientNetworkKit` protocol to inject test doubles anywhere.
-- Use the `ResilientNetworkKitMock` module (CocoaPods / SPM product) for generated mocks in unit tests.
-- Metrics, interceptors and trace inspectors are all protocols, so they are easy to fake.
+- Your application code talks only to the `ResilientNetworkKit` protocol – **never to `URLSession` directly**. This is a classic **ports & adapters** setup and keeps networking behind a single abstraction.
+- In production, you inject the concrete pipeline built by `ResilientNetworkKitBuilder`. In tests, you inject a fake or a type from the `ResilientNetworkKitMock` module (available as a separate SPM / CocoaPods product).
+- All cross-cutting components (`MetricInterceptor`, `NetworkLogTracker`, `NetworkTraceInspector`, SSL and retry/token-refresh interceptors) are protocols, so they can be replaced with lightweight fakes in unit tests.
+- Because interceptors and decorators are composable, you can write focused tests for:
+  - "no network" flows (inject a mock that returns canned responses),
+  - resilience behavior (inject a decorator and assert on retries / circuit-breaker state),
+  - observability (inject test loggers / metrics collectors).
 
 ---
 
@@ -365,3 +417,48 @@ The `CircuitBreakerNetworkKit` decorator will:
 
 This separation makes the library suitable for large, modular iOS codebases, and friendly to dependency
 injection and testing.
+
+---
+
+## High-level architecture diagram
+
+```mermaid
+graph LR
+  App[Your iOS App] -->|Endpoint requests| RNK[ResilientNetworkKit]
+  RNK --> Builder[ResilientNetworkKitBuilder]
+  Builder --> Decorators[Decorators]
+  Decorators --> Session[URLSession + SessionDelegate]
+  Session --> Interceptors[Interceptors]
+```
+
+Decorators typically include:
+- `AdvancedRetryNetworkKit`
+- `AuthTokenNetworkKit`
+- `CircuitBreakerNetworkKit`
+
+Interceptors typically include:
+- Metrics (via `MetricInterceptor`)
+- Logging (via `NetworkLogTracker` / response monitor interceptors)
+- SSL pinning (via `SSLConfiguration`)
+- Token refresh (via `TokenRefreshingInterceptor`)
+
+---
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## ⭐ Show Your Support
+
+If you find this library useful, please consider giving it a star! It helps others discover the project.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the `LICENSE` file for details.
+
+## 👤 Author
+
+Harry Nguyen Chi Hoang
+
+- Email: [harryngict@gmail.com](mailto:harryngict@gmail.com)
+- GitHub: [@harryngict](https://github.com/harryngict)
